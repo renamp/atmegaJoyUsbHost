@@ -31,12 +31,15 @@
 #define USB_PID_OUT		0xE1
 #define USB_PID_ACK		0xD2
 
+#define USB_UPDATE_TIME_TRIGGER 10
+
 typedef struct
 {
 	uint8_t data[24];
 } USBData;
 
 uint8_t usbconnected;
+uint8_t usb_update_counter;
 uint8_t usbdata[24];
 uint8_t usbdatalen;
 
@@ -45,6 +48,9 @@ extern uint8_t Receive_Bytes(uint8_t *data);
 extern uint8_t Receive_Bytes_ack(uint8_t *data);
 
 void USB_reset();
+void USB_keep_alive();
+void USB_Update();
+
 void JoyUSB_init();
 void joyUSB_read();
 

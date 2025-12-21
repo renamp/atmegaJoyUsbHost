@@ -17,6 +17,27 @@ void USB_reset()
 }
 
 
+void USB_keep_alive()
+{
+	USBPORT&=0xFC; USBDDR|=0x03;	//reset
+	_delay_us(1);
+	USBDDR&=0xFC; USBPORT&=0xFC;	//idle
+}
+
+
+void USB_Update()
+{
+	if(--usb_update_counter == 0)
+	{
+		usb_update_counter = USB_UPDATE_TIME_TRIGGER;
+		joyUSB_read();
+	}
+	else{
+		USB_keep_alive();
+	}
+}
+
+
 uint8_t USB_receive_data(uint8_t pos_len, uint8_t *pid, uint8_t *outdata)
 {
 	uint8_t size = 0;

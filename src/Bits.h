@@ -1,0 +1,9 @@
+////////////////////////////////////////////////
+//
+// Manipulacao de Bits
+//
+////////////////////////////////////////////////
+
+#define SETBIT(port, pin) port|=(1<<pin)
+#define RSTBIT(port, pin) port&=~(1<<pin)
+#define testbit(port, pin) (port&(1<<pin))

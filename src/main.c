@@ -9,8 +9,17 @@
 #include <avr/io.h>
 #include <stdio.h>
 #include <util/delay.h>
+#include <avr/interrupt.h>
+#include "Bits.h"
 #include "UART.h"
 #include "UsbHost.h"
+
+
+ISR(TIMER0_OVF_vect)
+{
+	if(usbconnected)
+		USB_Update();
+}
 
 
 void printdata_asc(uint8_t len, uint8_t *data)
@@ -36,6 +45,11 @@ void setup(void)
 	USB_reset();
 	JoyUSB_init();
 	
+	// Setup timer Interrup
+	TCCR0 = 0x03;		// (clk/64) overflow around 1ms
+	SETBIT(TIMSK, TOIE0);
+	sei();
+
 	UART_print("OK\n");
 }
 
@@ -47,10 +61,8 @@ int main(void)
     while(1)
     {
         if(usbconnected)
-		{
-			joyUSB_read();
 			printdata_asc(usbdatalen, usbdata);
-			_delay_ms(300);
-		}
+
+		_delay_ms(300);
     }
 }
