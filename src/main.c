@@ -7,11 +7,24 @@
 
 
 #include <avr/io.h>
+#include "UART.h"
+
+
+void setup(void)
+{
+	// UART initialization
+	UART_init(115200);
+	
+	UART_print("OK\n");
+}
+
 
 int main(void)
 {
+	setup();
+	
     while(1)
     {
-        //TODO:: Please write your application code 
+        UART_print(".");
     }
 }
