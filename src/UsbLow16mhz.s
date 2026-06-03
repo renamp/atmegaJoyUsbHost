@@ -20,18 +20,34 @@
 .section .data
 
 .section .text
+.global USB_SendTokenPacket
+.global USB_ReceiveBytes
+.global USB_ReceiveBytesAck
+.global USB_SendBytes
 .global Send_RawDiff
-.global Receive_Bytes
-.global Receive_Bytes_ack
-.global Send_Bytes
 .global Bytes2Rawdiff
+.global USB_crc16
 
 
 ;---------------------------------
 ; Function to Send bytes to device
-; void Send_Bytes(uint8_t size, uint8_t *data);
+; void USB_SendBytes(uint8_t size, uint8_t *data);
 ; [25:24] len,[23:22] ptr_data,
-Send_Bytes:
+USB_SendBytes:
+    rcall   USB_crc16
+    st      Z+, r20			; append CRC
+    st      Z,  r21
+    adiw    r24, 2
+	rcall	Bytes2Rawdiff
+	rcall	Send_RawDiff
+	RET
+
+
+;---------------------------------
+; Function to Send Token Packet
+; prototype:
+;	extern void USB_SendTokenPacket(uint8_t size, uint8_t *data);
+USB_SendTokenPacket:
 	rcall	Bytes2Rawdiff
 	rcall	Send_RawDiff
 	RET
@@ -111,17 +127,17 @@ Send_RawDiff_End:
 ;---------------------------------
 ; Function to Receive bytes from device
 ; prototype:
-;	extern uint8_t Receive_Bytes_ack(uint8_t *ptr_data);
+;	extern uint8_t USB_ReceiveBytesAck(uint8_t *ptr_data);
 ; (ptr_array[24:25])
-Receive_Bytes_ack:
+USB_ReceiveBytesAck:
 	ldi		r22, 0x01;	; with ack
 	rjmp	Receive_Bytes_INI1
 ;---------------------------------
 ; Function to Receive bytes from device
 ; prototype:
-;	extern uint8_t Receive_Bytes(uint8_t *ptr_data);
+;	extern uint8_t USB_ReceiveBytes(uint8_t *ptr_data);
 ; (ptr_array[24:25])
-Receive_Bytes:
+USB_ReceiveBytes:
 	clr		r22			;
 Receive_Bytes_INI1:
 	CLI					; disable interrupt
@@ -455,5 +471,50 @@ Bytes2Rawdiff_L4:
 	in		r23, SPH
 	clr		r1				; must clear before return
 	RET
+
+
+;---------------------------------------
+; USB CRC16
+; ([25:24] len,[23:22] ptr_data, [21:20] ptr_out)
+;---------------------------------------
+USB_crc16:
+    movw    ZL, r22         ; Z = payload pointer
+    adiw    ZL, 1
+    mov     r18, r24        ; byte counter
+    dec     r18
+    brne    usb_crc16_l0
+    clr     r20
+    clr     r21
+    RET
+usb_crc16_l0:
+    push    r16
+    push    r17
+    ldi     r20, 0xFF
+    ldi     r21, 0xFF       ; crc = 0xFFFF
+usb_crc16_l1:
+    ld      r19, Z+
+    ldi     r17, 8          ; bit counter
+usb_crc16_l2:
+    mov     r16, r20        ; (crc) XOR (data bit)
+    eor     r16, r19
+    lsr     r21             ; shift CRC right
+    ror     r20
+    ror     r16             ; shift to poly test using carry
+    brcc    usb_crc16_no_poly
+    ldi     r16, 0xA0
+    eor     r21, r16
+    ldi     r16, 0x01
+    eor     r20, r16
+usb_crc16_no_poly:
+    lsr     r19             ; next data bit
+    dec     r17
+    brne    usb_crc16_l2
+    dec     r18
+    brne    usb_crc16_l1
+    com     r20             ; final invert
+    com     r21
+    pop     r17
+    pop     r16
+    ret
 
 .end
