@@ -7,6 +7,10 @@
 
 #include "UsbHost.h"
 
+volatile uint8_t usb_update_counter;
+uint8_t usbconnected;
+uint8_t usbdata[16];
+volatile uint8_t usbdatalen;
 
 void USB_reset()
 {
@@ -38,31 +42,31 @@ void USB_Update()
 }
 
 
-uint8_t USB_receive_data(uint8_t pos_len, uint8_t *pid, uint8_t *outdata)
+uint8_t USB_receive_data(uint8_t pos_len, uint8_t *pid, uint8_t *ptrOut)
 {
 	uint8_t size = 0;
+    uint8_t ptrOutlen;
 	USBPacket packet;
-	uint8_t remaningCount;
-	
+	uint8_t remaningCount = 0;
+
 	USB_SendTokenPacket(3, pid);
-	usbdatalen = USB_ReceiveBytesAck(packet.data) - 3;
+	ptrOutlen = USB_ReceiveBytesAck(packet.data) - 3;
 	if(pos_len > 5){
-		remaningCount = pos_len - usbdatalen;
-		memcpy(usbdata, packet.data + 1, usbdatalen);
+		remaningCount = pos_len - ptrOutlen;
+		memcpy(ptrOut, packet.data + 1, ptrOutlen);
 	}
-	else{
-		remaningCount = packet.data[pos_len+1] - usbdatalen;
-		usbdatalen--;
-		memcpy(usbdata, packet.data + 2, usbdatalen);
+	else if(ptrOutlen > 0) {
+		remaningCount = packet.data[pos_len+1] - ptrOutlen;
+		memcpy(ptrOut, packet.data + 1, ptrOutlen);
 	}
 	while (remaningCount > 0){
 		USB_SendTokenPacket(3, pid);
 		size = USB_ReceiveBytesAck(packet.data) - 3;
-		memcpy(usbdata + usbdatalen, packet.data + 1, size);
+		memcpy(ptrOut + ptrOutlen, packet.data + 1, size);
 		remaningCount -= size;
-		usbdatalen += size;
+		ptrOutlen += size;
 	}
-	return usbdatalen;
+	return ptrOutlen;
 }
 
 
@@ -93,6 +97,8 @@ int USB_packetSetup(uint8_t *pid, uint8_t size, uint8_t *data)
 void JoyUSB_init()
 {
 	USBPacket packet;
+    uint8_t databuf[128];
+    uint8_t databuflen;
 	uint8_t pidsetup[]	= {USB_PID_SETUP,0x00,0x10};
 	uint8_t pidin[]	= {USB_PID_IN, 0x00, 0x10};
 	uint8_t pidsend[]	= {USB_PID_OUT,0x00, 0x10};
@@ -101,7 +107,7 @@ void JoyUSB_init()
 	packet = (USBPacket) {{USB_PID_DATA0,0x80,0x06,0x00,0x01,0x00,0x00,0x40,0x00}};
 	if( USB_send(pidsetup, 9, packet.data) == 0)
 		return;
-	usbdatalen = USB_receive_data(0,pidin, usbdata);
+	databuflen = USB_receive_data(0,pidin, databuf);
 	packet = (USBPacket) {{USB_PID_DATA0,0x00,0x00}};
 	if( USB_send(pidsend, 3, packet.data) == 0)
 		return;
@@ -109,7 +115,7 @@ void JoyUSB_init()
 	packet = (USBPacket) {{USB_PID_DATA0,0x00,0x05,0x05,0x00,0x00,0x00,0x00,0x00}};
 	if( USB_send(pidsetup, 9, packet.data) == 0)
 		return;
-	usbdatalen = USB_receive_data(0,pidin, usbdata);
+	databuflen = USB_receive_data(0,pidin, databuf);
 	
 	pidsetup[1] = 0x05; pidsetup[2] = 0xD0;	// change address
 	pidin[1]	= 0x05; pidin[2]	= 0xD0;
@@ -117,7 +123,7 @@ void JoyUSB_init()
 	packet = (USBPacket) {{USB_PID_DATA0,0x80,0x06,0x00,0x01,0x00,0x00,0x12,0x00}};
 	if( USB_send(pidsetup, 9, packet.data) == 0)
 		return;
-	usbdatalen = USB_receive_data(0,pidin, usbdata);
+	databuflen = USB_receive_data(0,pidin, databuf);
 	packet = (USBPacket) {{USB_PID_DATA0,0x00,0x00}};
 	if( USB_send(pidsend, 3, packet.data) == 0)
 		return;
@@ -125,7 +131,7 @@ void JoyUSB_init()
 	packet = (USBPacket) {{USB_PID_DATA0,0x80,0x06,0x00,0x02,0x00,0x00,0xFF,0x00}};
 	if( USB_send(pidsetup, 9, packet.data) == 0)
 		return;
-	usbdatalen = USB_receive_data(2, pidin, usbdata);
+	databuflen = USB_receive_data(2, pidin, databuf);
 	packet = (USBPacket) {{USB_PID_DATA0,0x00,0x00}};
 	if( USB_send(pidsend, 3, packet.data) == 0)
 		return;
@@ -133,7 +139,7 @@ void JoyUSB_init()
 	packet = (USBPacket) {{USB_PID_DATA0,0x80,0x06,0x00,0x03,0x00,0x00,0xFF,0x00}};
 	if( USB_send(pidsetup, 9, packet.data) == 0)
 		return;
-	usbdatalen = USB_receive_data(0,pidin, usbdata);
+	databuflen = USB_receive_data(0,pidin, databuf);
 	packet = (USBPacket) {{USB_PID_DATA0,0x00,0x00}};
 	if( USB_send(pidsend, 3, packet.data) == 0)
 		return;
@@ -141,7 +147,7 @@ void JoyUSB_init()
 	packet = (USBPacket) {{USB_PID_DATA0,0x80,0x06,0x02,0x03,0x09,0x04,0xFF,0x00}};
 	if( USB_send(pidsetup, 9, packet.data) == 0)
 		return;
-	usbdatalen = USB_receive_data(0,pidin, usbdata);
+	databuflen = USB_receive_data(0,pidin, databuf);
 	packet = (USBPacket) {{USB_PID_DATA0,0x00,0x00}};
 	if( USB_send(pidsend, 3, packet.data) == 0)
 		return;	
@@ -149,7 +155,7 @@ void JoyUSB_init()
 	packet = (USBPacket) {{USB_PID_DATA0,0x80,0x06,0x00,0x02,0x00,0x00,0x09,0x00}};
 	if( USB_send(pidsetup, 9, packet.data) == 0)
 		return;
-	usbdatalen = USB_receive_data(0,pidin, usbdata);
+	databuflen = USB_receive_data(0,pidin, databuf);
 	packet = (USBPacket) {{USB_PID_DATA0,0x00,0x00}};
 	if( USB_send(pidsend, 3, packet.data) == 0)
 		return;
@@ -157,7 +163,7 @@ void JoyUSB_init()
 	packet = (USBPacket) {{USB_PID_DATA0,0x80,0x06,0x00,0x02,0x00,0x00,0x29,0x00}};
 	if( USB_send(pidsetup, 9, packet.data) == 0)
 		return;
-	usbdatalen = USB_receive_data(0,pidin, usbdata);
+	databuflen = USB_receive_data(2,pidin, databuf);
 	packet = (USBPacket) {{USB_PID_DATA0,0x00,0x00}};
 	if( USB_send(pidsend, 3, packet.data) == 0)
 		return;
@@ -165,24 +171,24 @@ void JoyUSB_init()
 	packet = (USBPacket) {{USB_PID_DATA0,0x00,0x09,0x01,0x00,0x00,0x00,0x00,0x00}};
 	if( USB_send(pidsetup, 9, packet.data) == 0)
 		return;
-	usbdatalen = USB_receive_data(0,pidin, usbdata);
+	databuflen = USB_receive_data(0,pidin, databuf);
 	
 	packet = (USBPacket) {{USB_PID_DATA0,0x21,0x0A,0x00,0x00,0x00,0x00,0x00,0x00}};
 	if( USB_send(pidsetup, 9, packet.data) == 0)
 		return;
-	usbdatalen = USB_receive_data(0,pidin, usbdata);
+	databuflen = USB_receive_data(0,pidin, databuf);
 	
 	packet = (USBPacket) {{USB_PID_DATA0,0x81,0x06,0x00,0x22,0x00,0x00,0xA5,0x00}};
 	if( USB_send(pidsetup, 9, packet.data) == 0)
 		return;
-	usbdatalen = USB_receive_data(0x65, pidin, usbdata);
+	databuflen = USB_receive_data(0x65, pidin, databuf);
 		packet = (USBPacket) {{USB_PID_DATA0,0x00,0x00}};
 	if( USB_send(pidsend, 3, packet.data) == 0)
 		return;
 	
 	// change address
 	pidin[1]	= 0x85; pidin[2]	= 0x60;
-	USB_receive_data(0x08,pidin, usbdata);
+	usbdatalen = USB_receive_data(0x08,pidin, usbdata);
 	usbconnected = 1;
 }
 
