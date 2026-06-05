@@ -27,6 +27,7 @@
 .global Send_RawDiff
 .global Bytes2Rawdiff
 .global USB_crc16
+.global USB_AppendCRC5
 
 
 ;---------------------------------
@@ -46,8 +47,11 @@ USB_SendBytes:
 ;---------------------------------
 ; Function to Send Token Packet
 ; prototype:
-;	extern void USB_SendTokenPacket(uint8_t size, uint8_t *data);
+;	extern void USB_SendTokenPacket(uint8_t size, USBToken *data);
 USB_SendTokenPacket:
+    movw    ZL, r22
+    st      Z, r24
+    ldi     r24, 0x03
 	rcall	Bytes2Rawdiff
 	rcall	Send_RawDiff
 	RET
@@ -517,4 +521,47 @@ usb_crc16_no_poly:
     pop     r16
     ret
 
+
+;---------------------------------
+; Function to calculate and Append CRC5
+; prototype:
+;	extern void USB_AppendCRC5(USBToken *data);
+; {[0:8]pid, [0:6]Addr|[7:10]endpont|[11:15]CRC}
+; ([r25:r24] ptr, [r24] CRC5_result)
+;---------------------------------------
+USB_AppendCRC5:
+    movw    ZL, r24
+    ld      r24, Z+
+    ld      r24, Z+
+    ld      r25, Z
+    ldi     r20, 0x1F        ; init = 11111
+    ldi     r19, 11
+	ldi     r18, 0x14        ; poly = 10100
+
+crc5_01:
+	mov		r1, r20		; cpy to r1
+	eor		r1, r24
+	ror		r25
+	ror		r24
+	lsr		r20
+	ror		r1
+    brcc    crc5_02
+    eor     r20, r18		; xor with poly
+crc5_02:
+    dec     r19
+    brne    crc5_01
+    com     r20
+    andi    r20, 0x1F
+    mov     r24, r20
+    lsl     r20             ; shift returned crc5
+    lsl     r20
+    lsl     r20
+    andi    r20, 0xF8       ; CRC5 last 5 bits
+    ld      r25, Z
+    andi    r25, 0x7        ; first 3 bits are from endpoint
+    or      r25, r20
+    st      Z, r25          ; append CRC5 to Token array
+    clr     r1
+    clr     r25
+    ret
 .end
