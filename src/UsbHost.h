@@ -38,14 +38,23 @@ typedef struct
 	uint8_t data[12];
 } USBPacket;
 
+typedef struct
+{
+    uint8_t pid;
+    uint8_t addr     : 7;
+    uint8_t endpoint : 4;
+    uint8_t crc5     : 5;
+} USBToken;
+
 extern uint8_t usbconnected;
 extern uint8_t usbdata[];
 extern volatile uint8_t usbdatalen;
 
-extern void USB_SendTokenPacket(uint8_t size, uint8_t *data);
+extern void USB_SendTokenPacket(uint8_t size, USBToken *data);
 extern void USB_SendBytes(uint8_t size, uint8_t *data);
 extern uint8_t USB_ReceiveBytes(uint8_t *data);
 extern uint8_t USB_ReceiveBytesAck(uint8_t *data);
+extern uint8_t USB_AppendCRC5(USBToken *token);
 
 void USB_reset();
 void USB_keep_alive();
@@ -54,7 +63,10 @@ void USB_Update();
 void JoyUSB_init();
 void joyUSB_read();
 
-uint8_t USB_receive_data(uint8_t pos_len, uint8_t *pid, uint8_t *ptrOut);
-int USB_send(uint8_t *pid, uint8_t size, uint8_t *data);
+uint8_t USB_receive_data(uint8_t pos_len, uint8_t *ptrOut);
+int USB_PacketOut(uint8_t size, uint8_t *data);
+int USB_PacketSetup(uint8_t size, uint8_t *data);
+void USB_setTokenAddr(uint8_t addr);
+void USB_setTokenEndpoint(uint8_t endpoint);
 
 #endif /* USBHOST_H_ */
