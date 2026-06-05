@@ -38,10 +38,9 @@ typedef struct
 	uint8_t data[12];
 } USBPacket;
 
-uint8_t usbconnected;
-uint8_t usb_update_counter;
-uint8_t usbdata[64];
-uint8_t usbdatalen;
+extern uint8_t usbconnected;
+extern uint8_t usbdata[];
+extern volatile uint8_t usbdatalen;
 
 extern void USB_SendTokenPacket(uint8_t size, uint8_t *data);
 extern void USB_SendBytes(uint8_t size, uint8_t *data);
@@ -55,7 +54,7 @@ void USB_Update();
 void JoyUSB_init();
 void joyUSB_read();
 
-uint8_t USB_receive_data(uint8_t pos_len, uint8_t *pid, uint8_t *outdata);
+uint8_t USB_receive_data(uint8_t pos_len, uint8_t *pid, uint8_t *ptrOut);
 int USB_send(uint8_t *pid, uint8_t size, uint8_t *data);
 
 #endif /* USBHOST_H_ */
